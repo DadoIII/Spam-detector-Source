@@ -1,6 +1,7 @@
 import nltk
 import torch
 from nltk.util import ngrams
+from collections import Counter
 
 class NGgramFeatures():
     def __init__(self, lower, higher = None):
@@ -10,6 +11,7 @@ class NGgramFeatures():
         self.allTargets = []
         self.sortedFeatures = []
         self.lower = lower
+        self.higher = higher
         if higher == None:
             self.higher = lower
         if higher < lower:
@@ -35,24 +37,24 @@ class NGgramFeatures():
         for nGram in nGrams:
             if nGram in self.nGramCounts:
                 count = self.nGramCounts[nGram]
-                self.nGramCounts.update({nGram: count})
+                self.nGramCounts.update({nGram: count + 1})
             else:
                 self.nGramCounts[nGram] = 1
 
 
     def sortFeatures(self):
-        self.sortedFeatures = sorted(self.nGramCounts, reverse=True)
+        self.sortedFeatures = sorted(self.nGramCounts, key=self.nGramCounts.get, reverse=True)
 
     def truncateFixed(self, fixedLength):
         #truncate the feature space to a fixed length
         self.sortFeatures()
-        self.sortedFeatures[:fixedLength]
+        self.sortedFeatures = self.sortedFeatures[:fixedLength]
         self.truncateData()
 
     def truncatePercentage(self, fraction):
         #truncate the feature space to a given fraction of the original length
         self.sortFeatures()
-        self.sortedFeatures[:len(self.sortedFeatures)*fraction]
+        self.sortedFeatures = self.sortedFeatures[:round(len(self.sortedFeatures)*fraction)]
         self.truncateData()
 
     def truncateMinimumCount(self, minimumCount):
@@ -60,8 +62,9 @@ class NGgramFeatures():
         self.sortFeatures()
         for i, feature in enumerate(self.sortedFeatures):
             if self.nGramCounts[feature] < minimumCount:
-                self.sortedFeatures[:i]
+                self.sortedFeatures = self.sortedFeatures[:i]
                 break
+        
         self.truncateData()
 
     def truncateMinimumFraction(self, minimumFraction):
@@ -69,23 +72,21 @@ class NGgramFeatures():
         self.sortFeatures()
         for i, feature in enumerate(self.sortedFeatures):
             if self.nGramCounts[feature] < len(self.sortedFeatures)*minimumFraction:
-                self.sortedFeatures[:i]
+                self.sortedFeatures = self.sortedFeatures[:i]
                 break
         self.truncateData()
     
     def truncateData(self):
         #create a feature space based on the most important features chosen by one of the truncate functions
         for data in self.nGramData:
+            c = Counter(data)
             features = []
             for feature in self.sortedFeatures:
-                if feature in data:
-                    features.append(data[feature])
-                else:
-                    features.append(0)
+                features.append(c[feature])
             self.allFeatures.append(features)
 
     def getFeatureSpace(self):
-        return torch.Tensor(self.allFeatures, dtype=torch.int)
+        return torch.Tensor(self.allFeatures)
     
     def getTargets(self):
-        return torch.Tensor(self.allTargets, dtype=torch.int)
+        return torch.Tensor(self.allTargets)
