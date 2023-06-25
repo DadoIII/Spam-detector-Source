@@ -1,5 +1,6 @@
 import nltk
 import torch
+import numpy as np
 from nltk.util import ngrams
 from collections import Counter
 
@@ -85,8 +86,14 @@ class NGgramFeatures():
                 features.append(c[feature])
             self.allFeatures.append(features)
 
-    def getFeatureSpace(self):
+    def getTensorFeatures(self):
         return torch.Tensor(self.allFeatures)
     
-    def getTargets(self):
+    def getTensorTargets(self):
         return torch.Tensor(self.allTargets)
+
+    def getFeatures(self):
+        return np.array(self.allFeatures)
+    
+    def getTargets(self):
+        return np.array(self.allTargets)
