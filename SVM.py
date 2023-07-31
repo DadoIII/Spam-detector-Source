@@ -1,8 +1,9 @@
 import os
-import CustomDataset
 from FeatureExtractor import NGgramFeatures
 from sklearn import svm
 from sklearn.model_selection import GridSearchCV
+from sklearn.metrics import confusion_matrix
+import pickle #save and load models
 import random
 #from sklearn.pipeline import make_pipeline
 #from sklearn.preprocessing import StandardScaler
@@ -31,9 +32,15 @@ for subdir, _, files in os.walk(rootdir):
             featureExtractor.addDataPoint(text, -1)
 
 print('Features extracted, starting truncating')
-featureExtractor.truncateFixed(200)
+featureExtractor.truncateFixed(1000)
 features = featureExtractor.getFeatures()
 targets = featureExtractor.getTargets()
+
+#save the feature space to a file
+with open("featureSpace.txt", 'w') as f:
+    featureSpace = featureExtractor.extractFeatureSpace()
+    for feature in featureSpace:
+        f.write(feature + '\n')
 
 #shuffling the data
 zipped = list(zip(features, targets))
@@ -50,9 +57,11 @@ trTargets = targets[:-test_data_size]
 testFeatures = features[-test_data_size:]
 testTargets = targets[-test_data_size:]
 
+
+'''
 #{'C': 100, 'gamma': 0.001, 'kernel': 'rbf'}
 #https://www.geeksforgeeks.org/svm-hyperparameter-tuning-using-gridsearchcv-ml/
-# defining parameter range
+#defining parameter range
 param_grid = {'C': [0.1, 1, 10, 100, 1000], 
               'gamma': [1, 0.1, 0.01, 0.001, 0.0001],
               'kernel': ['rbf']} 
@@ -64,10 +73,9 @@ grid.fit(trFeatures, trTargets)
 
 # print best parameter after tuning
 print(grid.best_params_)
-
 '''
-clf = svm.SVC(C = 0.8, class_weight = 'balanced')
-#clf = make_pipeline(StandardScaler(), SVC(gamma='auto'))
+
+clf = svm.SVC(C = 100, gamma = 0.001, kernel = 'rbf', class_weight = 'balanced')
 clf.fit(trFeatures, trTargets)
 
 
@@ -76,6 +84,18 @@ print('Finished learning, starting testing')
 predictions = clf.predict(testFeatures)
 correct = sum(predictions == testTargets)
 
+CM = confusion_matrix(testTargets, predictions)
+
+TN = CM[0][0]
+FN = CM[1][0]
+TP = CM[1][1]
+FP = CM[0][1]
 
 print('Finished testing, acc = ' + str(correct/test_data_size))
-'''
+print('TN:', TN)
+print('FN:', FN)
+print('TP:', TP)
+print('FP:', FP)
+
+#save model
+pickle.dump(clf, open("svm.pickle", "wb"))
